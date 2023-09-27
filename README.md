@@ -36,3 +36,8 @@ def model_size():
     return size
 ###########################################################################
 ```
+Follow this installation guide to make it work over GPU under miniconda package manager:
+https://www.tensorflow.org/install/pip
+
+
+
