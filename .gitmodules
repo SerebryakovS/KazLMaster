@@ -1,0 +1,3 @@
+[submodule "ProcessingTools"]
+	path = ProcessingTools
+	url = https://github.com/makazhan/kaznlp.git

@@ -36,8 +36,12 @@ def model_size():
     return size
 ###########################################################################
 ```
-Follow this installation guide to make it work over GPU under miniconda package manager:
+Follow this installation guide to make it work over GPU under miniconda3 package manager:
+```
 https://www.tensorflow.org/install/pip
+```
 
 
+Notes:
+1. Common practices for setting the number of epochs include monitoring the model's performance on a validation dataset and stopping training early (early stopping) if the performance no longer improves. It helps prevent overfitting and ensures that the model generalizes well to unseen data.
 
