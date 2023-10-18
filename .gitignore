@@ -1,3 +1,6 @@
 miniconda3/
 saves/
 __pycache__/
+TrainData
+ValidData
+TestData

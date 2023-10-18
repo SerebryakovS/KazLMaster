@@ -1,0 +1,5 @@
+{
+    "OperationMode" : "Prepare",
+    "TrainSetsPath" : "data/TrainSets/",
+    "TestSetsPath" : "data/TestSets/"
+}
