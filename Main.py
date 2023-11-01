@@ -6,7 +6,6 @@ from RNN_LSTM_v2 import TrainLSTMModel
 AppName = "KazLMaster";
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO);
 
-
 if __name__ == "__main__":
     with open("OperationParameters.json") as OperationParametersJsonFile:
         OperationParameters = json.load(OperationParametersJsonFile);
@@ -19,8 +18,8 @@ if __name__ == "__main__":
 
     CurrentPath = os.getcwd();
     # Data preparation flow:
-        # DataMaker.PrepareRawDataFiles(OperationParameters["TrainSetsPath"],f"{CurrentPath}/TrainData");
-        # DataMaker.PrepareRawDataFiles(OperationParameters["TestSetsPath"],f"{CurrentPath}/ValidData");
+    #DataMaker.PrepareRawDataFiles(OperationParameters["TrainSetsPath"],f"{CurrentPath}/TrainData");
+    #DataMaker.PrepareRawDataFiles(OperationParameters["TestSetsPath"],f"{CurrentPath}/ValidData");
 
 
     VocabularySize, GetReadySetFunc = DataMaker.PrepareVocabulary(f"{CurrentPath}/TrainData");
