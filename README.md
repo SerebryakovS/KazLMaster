@@ -17,6 +17,10 @@ After that some tiny changes in code were made to make it work in default way.
 The default processing tools are set to the following project in use: https://github.com/makazhan/kaznlp.git
 Due to the need to train large amounts of information in the Kazakh language, a ready-made tool was used, including models and useful preprocessing functions out of the box
 
+### Configuration feature
+
+This project highly extends functionality of the original one. Key feature is the configuration flexibility. In the included OperationParameters.json file user can set desired operation mode and stages he interested in. For example, if u've already trained the model before, just set TrainAndValidStage's StageEnabled parameter to False. This action will omit training stage.
+
 
 
 Notes:
@@ -25,3 +29,7 @@ Notes:
 2. The whole program operation could be pipelined.
 
 3. During the computing of probabilities of the word sequences it’s important to define the boundaries (punctuation marks such as period, comma, column or starting of the new sentence from the new line) in order to prevent the search from being computationally unmanageable.
+
+### Literature:
+
+    1. learning rate: https://wiki.loginom.ru/articles/learning-rate.html

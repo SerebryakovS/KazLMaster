@@ -1,5 +1,18 @@
 {
-    "OperationMode" : "Prepare",
-    "TrainSetsPath" : "data/TrainSets/",
-    "TestSetsPath" : "data/TestSets/"
+    "DefaultDataPath" : "data/DefaultData/word/",
+    "DefaultDataOnly": false,
+    "PrepareStage" : {
+        "StageEnabled" : false,
+        "RawTrainDataSetsPath" : "data/TrainSets/"
+    },
+    "TrainAndValidStage" : {
+        "StageEnabled" : true
+    },
+    "TestStage" : {
+        "StageEnabled" : false
+    },
+    "UseStage" : {
+        "StageEnabled" : false,
+        "AppToRunWith" : ""
+    }
 }

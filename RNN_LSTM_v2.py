@@ -3,10 +3,15 @@
 import os
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
 import tensorflow as tf
+
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 GPUconfig = tf.compat.v1.ConfigProto();
 GPUconfig.gpu_options.per_process_gpu_memory_fraction = 0.6
 
@@ -40,23 +45,6 @@ from tensorflow.python.util import nest
 
 # With this, you disable the default activate eager execution and you don't need to touch the code much more.
 tf.compat.v1.disable_eager_execution();
-
-
-class Config(object):
-    # Global hyperparameters
-    batch_size = 20
-    max_grad_norm = 5
-    lr_decay = 0.8
-    learning_rate = 1.0
-    init_scale = 0.05
-    num_epochs = 1
-    max_epoch = 6
-    word_vocab_size = 0 # to be determined later
-    num_layers = 2
-    # RNN hyperparameters
-    num_steps = 35
-    hidden_size = 650
-    keep_prob =0.5
 
 _LSTMStateTuple = collections.namedtuple("LSTMStateTuple", ("c", "h"))
 
@@ -168,17 +156,14 @@ class MyModel:
         init_scale = config.init_scale
         word_emb_dim = hidden_size = config.hidden_size
         word_vocab_size = config.word_vocab_size
-        print("______[DEBUG]: Model __init__: 1");
         #initializer = tf.random_uniform_initializer(-config.init_scale, config.init_scale)
         # language model
         #with tf.variable_scope('model', initializer=initializer):
         # embedding matrix
         word_embedding = tf.compat.v1.get_variable("word_embedding", [word_vocab_size, word_emb_dim])
-        print("______[DEBUG]: Model __init__: 2");
         # placeholders for training data and labels
         self.x = tf.compat.v1.placeholder(tf.int32, [batch_size, num_steps])
         self.y = tf.compat.v1.placeholder(tf.int32, [batch_size, num_steps])
-        print("______[DEBUG]: Model __init__: 3");
         # we first embed words ...
         words_embedded = tf.nn.embedding_lookup(word_embedding, self.x)
         if is_train:
@@ -188,7 +173,6 @@ class MyModel:
             rnn_input = tf.unstack(rnn_input, axis=1)
         else:
             rnn_input = tf.unstack(words_embedded, axis=1)
-        print("______[DEBUG]: Model __init__: 4");
         # basic RNN cell
         cell1 = LSTM_RNNCell(config.init_scale,hidden_size)
         if is_train:
@@ -196,36 +180,26 @@ class MyModel:
         cell2 = LSTM_RNNCell(config.init_scale,hidden_size)
         if is_train:
             cell2 = tf.compat.v1.nn.rnn_cell.DropoutWrapper(cell2, output_keep_prob=config.keep_prob)
-        print("______[DEBUG]: Model __init__: 5");
         cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([cell1, cell2])
         
-        print("______[DEBUG]: Model __init__: 6");
         self.init_state = cell.zero_state(batch_size, dtype=tf.float32)
 
         state = self.init_state
-        print("______[DEBUG]: Model __init__: 7");
         outputs, self.state = tf.compat.v1.nn.static_rnn(
             cell,
             rnn_input,
             dtype=tf.float32,
             initial_state=self.init_state)
         output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, hidden_size])
-        print("______[DEBUG]: Model __init__: 8");
         # softmax layer
         weights = tf.compat.v1.get_variable('weights', [hidden_size, word_vocab_size], dtype=tf.float32)
         biases = tf.compat.v1.get_variable('biases', [word_vocab_size], dtype=tf.float32)
-        print("______[DEBUG]: Model __init__: 9");
         logits = tf.matmul(output, weights) + biases
         ###########################################################################
-        # loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
-        #     [logits],
-        #     [tf.reshape(self.y, [-1])],
-        #     [tf.ones([batch_size * num_steps], dtype=tf.float32)])
-        loss = tf.keras.losses.sparse_categorical_crossentropy(
-            tf.reshape(self.y, [-1]),
-            logits,
-            from_logits=True
-        )
+        loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
+             [logits],
+             [tf.reshape(self.y, [-1])],
+             [tf.ones([batch_size * num_steps], dtype=tf.float32)])
         loss = tf.reduce_mean(loss)
         ###########################################################################
         self.cost = cost = tf.reduce_sum(loss) / batch_size
@@ -236,9 +210,8 @@ class MyModel:
         grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), config.max_grad_norm)
         optimizer = tf.compat.v1.train.GradientDescentOptimizer(self.lr)
         ###########################################################################
-        # self.train_op = optimizer.apply_gradients(zip(grads, tvars),
-        #                                  global_step = tf.contrib.framework.get_or_create_global_step())
-        self.train_op = optimizer.apply_gradients(zip(grads, tvars))
+        self.train_op = optimizer.apply_gradients(zip(grads, tvars),
+                                                  global_step = tf.contrib.framework.get_or_create_global_step())
         ###########################################################################
         self.new_lr = tf.compat.v1.placeholder(tf.float32, shape=[], name="new_learning_rate")
         self.lr_update = tf.compat.v1.assign(self.lr, self.new_lr)
@@ -277,114 +250,109 @@ def model_size():
 ###########################################################################
 
 def run_epoch(sess, m_train, raw_data, train_op, config, is_train=False, lr=None):
+
     start_time = time.time()
-    if is_train: m_train.assign_lr(sess, lr)
-    #if is_train: sess.run(lr_update, feed_dict={new_lr: lr})
+    if is_train: 
+        m_train.assign_lr(sess, lr)
 
     iters = 0
     costs = 0
     state_val = sess.run(m_train.init_state)
 
     batches = batch_producer(raw_data, config.batch_size, config.num_steps)
-
-    for (batch_x, batch_y) in batches:
+    
+    for batch_idx, (batch_x, batch_y) in enumerate(batches):
         # run the model on current batch
-        #if is_train:
         _, c, state_val = sess.run(
             [train_op, m_train.cost, m_train.state],
             feed_dict={m_train.x: batch_x, m_train.y: batch_y,
-                    m_train.init_state: state_val})
-        #else:
-        # c, state_val = sess.run([cost, state],
-        #    feed_dict={x: batch_x, y: batch_y,
-        #              init_state: state_val})
+                       m_train.init_state: state_val})
+        
+        # Check if cost is NaN or Inf
+        if np.isnan(c) or np.isinf(c):
+            print(f"[DEBUG]: NaN or Inf value detected in cost at batch {batch_idx}. Exiting...");
+            return float('inf');
 
         costs += c
+        iters += config.num_steps
+        
         step = iters // config.num_steps
         if is_train and step % (batches.epoch_size // 10) == 10:
-            print('%.3f' % (step * 1.0 / batches.epoch_size), end=' ')
-            ElapsedTime = (time.time() - start_time);
-            print('train_ppl = %.3f' % np.exp(costs / iters), end=', ')
-            print('elapsed_time=%.3f' % ElapsedTime, end=', ')
-            print('speed =',
-                round(iters * config.batch_size / ElapsedTime),
-                'wps')
-            iters += config.num_steps
+            elapsed_time = (time.time() - start_time)
+            print(f'\t[..]: Progress: {step * 1.0 / batches.epoch_size:.2f}, ',
+                  f'Train Perplexity: {np.exp(costs / iters):.3f}, ',
+                  f'Elapsed Time: {elapsed_time:.3f}s, ',
+                  f'Speed: {iters * config.batch_size / elapsed_time:.2f} wps')
+            
+    if iters == 0:
+        print("Warning: No iterations were run. Returning inf perplexity.")
+        return float('inf')
+    else:
+        return np.exp(costs / iters)
 
-    return np.exp(costs / iters)
 
-
-
-def TrainLSTMModel(VocabularySize, DataSets):
-    print("[DEBUG]:Create an instance of the Config class")
-    config = Config()
-    
-    print("[DEBUG]: Load training, validation, and test datasets")
+def TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
+    #print("[DEBUG]:Create an instance of the Config class")
+    #print("[DEBUG]: Load training, validation, and test datasets")
     # train_raw_data, valid_raw_data, test_raw_data = GetDataSetsDefault(DefaultDataPath)
-    TrainData, ValidData, TestData = DataSets
-    config.word_vocab_size = VocabularySize
 
-    print("[DEBUG]: Define a uniform random initializer with the specified initialization scale from the config")
-    initializer = tf.compat.v1.random_uniform_initializer(-config.init_scale, config.init_scale)
-    print("[DEBUG]: Define the training model within a TensorFlow variable scope")
+    #print("[DEBUG]: Define a uniform random initializer with the specified initialization scale from the config")
+    initializer = tf.compat.v1.random_uniform_initializer(-ModelConfig.init_scale, ModelConfig.init_scale)
+    #print("[DEBUG]: Define the training model within a TensorFlow variable scope")
     with tf.compat.v1.variable_scope('Model', reuse=False, initializer=initializer):
-        m_train = MyModel(config=config, is_train=True)
-    # Print the model's size
+        m_train = MyModel(config=ModelConfig, is_train=True)
     print('[DEBUG]: Model size is: ', model_size())
-    print("[DEBUG]: Define the validation model with the same variable scope as the training model")
+    #print("[DEBUG]: Define the validation model with the same variable scope as the training model")
     with tf.compat.v1.variable_scope('Model', reuse=True, initializer=initializer):
-        m_valid = MyModel(config=config, is_train=False)
-    print("[DEBUG]: Define the test model with the same variable scope as the training model")
+        m_valid = MyModel(config=ModelConfig, is_train=False)
+    #print("[DEBUG]: Define the test model with the same variable scope as the training model")
     with tf.compat.v1.variable_scope('Model', reuse=True, initializer=initializer):
-        m_test = MyModel(config=config, is_train=False)
-    print("[DEBUG]: Create a saver object to save and restore TensorFlow model variables")
+        m_test = MyModel(config=ModelConfig, is_train=False)
+    #print("[DEBUG]: Create a saver object to save and restore TensorFlow model variables")
     saver = tf.compat.v1.train.Saver()
-    print("[DEBUG]: Get the number of training epochs from the configuration")
-    num_epochs = config.num_epochs
-    print("[DEBUG]: Initialize global variables")
+    #print("[DEBUG]: Get the number of training epochs from the configuration")
+    num_epochs = ModelConfig.num_epochs
+    #print("[DEBUG]: Initialize global variables")
     init = tf.compat.v1.global_variables_initializer()
-    print("[DEBUG]: Get the learning rate from the configuration")
-    learning_rate = config.learning_rate
-    print("[DEBUG]: Start a TensorFlow session with GPU configuration")
+    #print("[DEBUG]: Get the learning rate from the configuration")
+    learning_rate = ModelConfig.learning_rate
+    #print("[DEBUG]: Start a TensorFlow session with GPU configuration")
     with tf.compat.v1.Session(config=GPUconfig) as sess:
-        print("[DEBUG]: Run the variables initializer")
+        #print("[DEBUG]: Run the variables initializer")
         sess.run(init)
-        print("[DEBUG]: Set initial values for previous and best validation set perplexity")
+        #print("[DEBUG]: Set initial values for previous and best validation set perplexity")
         prev_valid_ppl = float('inf')
         best_valid_ppl = float('inf')
-        print("[DEBUG]: Train the model for a number of epochs..")
+        #print("[DEBUG]: Train the model for a number of epochs..")
         for epoch in range(num_epochs):
-            print("[DEBUG]: Run one training epoch and get the perplexity")
+            #print("[DEBUG]: Run one training epoch and get the perplexity")
             train_ppl = run_epoch(
-                sess, m_train, TrainData, m_train.train_op, config, is_train=True,
+                sess, m_train, TrainData, m_train.train_op, ModelConfig, is_train=True,
                 lr=learning_rate)
             # Print the epoch number, training set perplexity, and current learning rate
-            print('[DEBUG]: epoch', epoch + 1, end=': ')
+            print('[DEBUG]: epoch: %3d' % (epoch + 1), end=': ')
             print('train ppl = %.3f' % train_ppl, end=', ')
             print('lr = %.3f' % learning_rate, end=', ')
             # Get the validation set perplexity
             valid_ppl = run_epoch(
-                sess, m_valid, ValidData, tf.no_op(), config, is_train=False)
-            print('valid ppl = %.3f' % valid_ppl)
+                sess, m_valid, ValidData, tf.no_op(), ModelConfig, is_train=False)
             # Decrease the learning rate after a specified number of epochs
-            if epoch + 2 > config.max_epoch:
-                learning_rate *= config.lr_decay
+            if epoch > ModelConfig.max_epoch:
+                learning_rate *= ModelConfig.lr_decay
             # Save the model if the validation perplexity improves
             if valid_ppl < best_valid_ppl:
                 save_path = saver.save(sess, 'saves/model.ckpt')
-                print("_______________[LOG]: Valid ppl improved. valid_ppl={valid_ppl}, Model saved in file: {save_path}")
+                print(f"Valid ppl improved. valid_ppl={valid_ppl}, Model saved in file: {save_path}")
                 best_valid_ppl = valid_ppl
             else:
-                print(f"_______________[LOG]: Valid ppl NOT improved. valid_ppl={valid_ppl}")
+                print(f"Valid ppl NOT improved. valid_ppl={valid_ppl}")
         # If testing step is to be used, test the LSTM model with the test data
-        if TestData:
-            TestLSTMModel(config, test_raw_data)
 
-def TestLSTMModel(config,test_raw_data):
+def TestLSTMModel(config, TestData):
     with tf.compat.v1.Session(config=GPUconfig) as sess:
         # Restore variables from disk.
         saver.restore(sess, 'saves/model.ckpt')
         print('Model restored.')
         # Get test set perplexity
-        test_ppl = run_epoch(sess, m_test, test_raw_data, tf.no_op(), config, is_train=False)
+        test_ppl = run_epoch(sess, m_test, TestData, tf.no_op(), config, is_train=False)
         print('Test set perplexity = %.3f' % test_ppl)

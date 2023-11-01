@@ -18,7 +18,7 @@ def GetDataSetsDefault(DefaultDataPath="./data/defaultData/word"):
     train_raw_data = get_word_raw_data(f"{DefaultDataPath}/train.txt")
     valid_raw_data = get_word_raw_data(f"{DefaultDataPath}/valid.txt")
     test_raw_data = get_word_raw_data(f"{DefaultDataPath}/test.txt")
-    return word_vocab_size, train_raw_data, valid_raw_data, test_raw_data
+    return word_vocab_size, {"Train":train_raw_data, "Valid": valid_raw_data, "Test": test_raw_data}
 ################################################################################################
 
 def PrepareRawDataFiles(SetsPath, OutputFilepath):
