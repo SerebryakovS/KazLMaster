@@ -22,6 +22,16 @@ Due to the need to train large amounts of information in the Kazakh language, a 
 This project highly extends functionality of the original one. Key feature is the configuration flexibility. In the included OperationParameters.json file user can set desired operation mode and stages he interested in. For example, if u've already trained the model before, just set TrainAndValidStage's StageEnabled parameter to False. This action will omit training stage.
 
 
+### Training flow features
+
+Here used a smarter approach of using strategies that adapt the learning rate based on the training process, such as:
+
+
+    Early Stopping: Monitor the validation performance and stop training when the validation metric stops improving.
+    
+    Reduce on Plateau: Lower the learning rate by a certain factor when the validation metric has stopped improving.
+
+
 
 Notes:
 1. Common practices for setting the number of epochs include monitoring the model's performance on a validation dataset and stopping training early (early stopping) if the performance no longer improves. It helps prevent overfitting and ensures that the model generalizes well to unseen data.

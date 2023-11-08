@@ -1,6 +1,8 @@
 {
     "DefaultDataPath" : "data/DefaultData/word/",
-    "DefaultDataOnly": false,
+    "DefaultDataOnly" : true,
+    "TrainSetsPath" : "data/TrainSets/",
+    "TestSetsPath" : "data/TestSets/",
     "PrepareStage" : {
         "StageEnabled" : false,
         "RawTrainDataSetsPath" : "data/TrainSets/"
@@ -9,7 +11,7 @@
         "StageEnabled" : true
     },
     "TestStage" : {
-        "StageEnabled" : false
+        "StageEnabled" : true
     },
     "UseStage" : {
         "StageEnabled" : false,
