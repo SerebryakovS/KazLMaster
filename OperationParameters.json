@@ -1,17 +1,26 @@
 {
     "DefaultDataPath" : "data/DefaultData/word/",
-    "DefaultDataOnly" : true,
-    "TrainSetsPath" : "data/TrainSets/",
-    "TestSetsPath" : "data/TestSets/",
-    "PrepareStage" : {
-        "StageEnabled" : false,
-        "RawTrainDataSetsPath" : "data/TrainSets/"
-    },
-    "TrainAndValidStage" : {
-        "StageEnabled" : true
-    },
-    "TestStage" : {
-        "StageEnabled" : true
+    "DefaultDataOnly" : false,
+    
+    "BasicStages": {
+        "PrepareStage" : {
+            "StageEnabled" : true,
+            "RawTrainDataSetsPath" : "data/TrainSets/",
+            "ProcessFileSemaCount" : 50,
+            "ProcessFileContentsThreadsCount" : 50
+        },
+        "TrainAndValidStage" : {
+            "StageEnabled" : false
+        },
+        "TestStage" : {
+            "StageEnabled" : false,
+            "TestSetsPath" : "data/TestSets/"
+        },
+        "BasicStagesScenario" : {
+            "Mode" : "TrainDataAccumulator",
+            "InitialDataPart"    : 0.01,
+            "VocabularyIncrease" : 0.01
+        }
     },
     "UseStage" : {
         "StageEnabled" : false,

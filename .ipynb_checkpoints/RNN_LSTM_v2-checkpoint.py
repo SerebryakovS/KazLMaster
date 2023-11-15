@@ -13,8 +13,9 @@ import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 GPUconfig = tf.compat.v1.ConfigProto();
-GPUconfig.gpu_options.per_process_gpu_memory_fraction = 0.6
+GPUconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 
+import DataMaker
 import numpy as np
 import time
 import sys
@@ -291,25 +292,32 @@ def run_epoch(sess, m_train, raw_data, train_op, config, is_train=False, lr=None
         return np.exp(costs / iters)
 
 
-def TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
-    #print("[DEBUG]:Create an instance of the Config class")
-    #print("[DEBUG]: Load training, validation, and test datasets")
-    # train_raw_data, valid_raw_data, test_raw_data = GetDataSetsDefault(DefaultDataPath)
-
-    PatienceCounter = 0;
+def TrainAndValidLSTMModel(ModelConfig, TrainingScenario, TrainData, ValidData):
+    if TrainingScenario["Mode"] == "TrainDataAccumulator":
+            DataPart = TrainingScenario["InitialDataPart"];
+            VocabularyIncrease = TrainingScenario["VocabularyIncrease"];
+            InitialAdd = 0.0;
+            while DataPart <= 1.0:
+                CurrentTrainDataPart = DataPart+InitialAdd;
+                IterationTrainData = DataMaker.GetListPart(TrainData,CurrentTrainDataPart);
+                print(f'[DEBUG][TrainDataAccumulator]: CurrentTrainDataPart={CurrentTrainDataPart} TotalWordsCount={len(IterationTrainData)} ');
+                InitialAdd += VocabularyIncrease;
+                _TrainAndValidLSTMModel(ModelConfig, IterationTrainData, ValidData);
+    elif TrainingScenario["Mode"] == "Default":
+        _TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData);
     
+    
+def _TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
+    PatienceCounter = 0;
     #print("[DEBUG]: Define a uniform random initializer with the specified initialization scale from the config")
     initializer = tf.compat.v1.random_uniform_initializer(-ModelConfig.init_scale, ModelConfig.init_scale)
     #print("[DEBUG]: Define the training model within a TensorFlow variable scope")
     with tf.compat.v1.variable_scope('Model', reuse=False, initializer=initializer):
         m_train = MyModel(config=ModelConfig, is_train=True)
-    print('[DEBUG]: Model size is: ', model_size())
+    #print('[DEBUG]: Model size is: ', model_size())
     #print("[DEBUG]: Define the validation model with the same variable scope as the training model")
     with tf.compat.v1.variable_scope('Model', reuse=True, initializer=initializer):
         m_valid = MyModel(config=ModelConfig, is_train=False)
-    #print("[DEBUG]: Define the test model with the same variable scope as the training model")
-    with tf.compat.v1.variable_scope('Model', reuse=True, initializer=initializer):
-        m_test = MyModel(config=ModelConfig, is_train=False)
     #print("[DEBUG]: Create a saver object to save and restore TensorFlow model variables")
     saver = tf.compat.v1.train.Saver()
 
@@ -341,7 +349,7 @@ def TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
                 best_valid_ppl = valid_ppl
                 PatienceCounter = 0  # Reset patience
                 # Save model if validation performance improves
-                save_path = saver.save(sess, 'saves/model.ckpt')
+                save_path = saver.save(sess, ModelConfig.ModelCheckPoint)
                 print(f"Valid ppl improved     | valid_ppl={valid_ppl}")
             else:
                 PatienceCounter += 1  # No improvement in validation performance
@@ -355,22 +363,20 @@ def TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
                 print(f"[DEBUG]: Early stop. MaxEpochNumber={ModelConfig.MaxEpochNumber} reached");
                 break;
             
-            ### OLD_LOGIC
-            #if epoch > ModelConfig.max_epoch:
-            #    learning_rate *= ModelConfig.LearningRateDecay
-            ## Save the model if the validation perplexity improves
-            #if valid_ppl < best_valid_ppl:
-            #    save_path = saver.save(sess, 'saves/model.ckpt')
-            #    print(f"Valid ppl improved. valid_ppl={valid_ppl}, Model saved in file: {save_path}")
-            #    best_valid_ppl = valid_ppl
-            #else:
-            #    print(f"Valid ppl NOT improved. valid_ppl={valid_ppl}")
 
 
-def TestLSTMModel(config, TestData, DataLabel):
+
+def TestLSTMModel(ModelConfig, TestData, DataLabel):
+    initializer = tf.compat.v1.random_uniform_initializer(-ModelConfig.init_scale, ModelConfig.init_scale)
+    #print("[DEBUG]: Define the test model with the same variable scope as the training model")
+    with tf.compat.v1.variable_scope('Model', reuse=tf.AUTO_REUSE, initializer=initializer):
+        m_test = MyModel(config=ModelConfig, is_train=False)
+    saver = tf.train.Saver()
     with tf.compat.v1.Session(config=GPUconfig) as sess:
         # Restore variables from disk.
-        saver.restore(sess, 'saves/model.ckpt')
+        saver.restore(sess, ModelConfig.ModelCheckPoint)
         # Get test set perplexity
-        test_ppl = run_epoch(sess, m_test, TestData, tf.no_op(), config, is_train=False)
-        print('f[DEBUG][%10s]: Test set perplexity = %.3f' % (DataLabel,test_ppl))
+        test_ppl = run_epoch(sess, m_test, TestData, tf.no_op(), ModelConfig, is_train=False)
+        print('[DEBUG][%s]: Test set perplexity = %.3f' % (DataLabel,test_ppl))
+
+        

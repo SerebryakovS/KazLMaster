@@ -40,6 +40,8 @@ Notes:
 
 3. During the computing of probabilities of the word sequences it’s important to define the boundaries (punctuation marks such as period, comma, column or starting of the new sentence from the new line) in order to prevent the search from being computationally unmanageable.
 
+A low perplexity indicates the probability distribution is good at predicting the sample.
+
 ### Literature:
 
     1. learning rate: https://wiki.loginom.ru/articles/learning-rate.html
