@@ -2,8 +2,9 @@ import os
 import re
 import time
 import asyncio
+from multiprocessing import Queue, Manager
 from asyncio import Semaphore
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from ProcessingTools.kaznlp.lid.lidnb import LidNB
 from ProcessingTools.kaznlp.tokenization.tokrex import TokenizeRex
 
@@ -26,11 +27,11 @@ def GetDataSetsDefault(DefaultDataPath="./data/defaultData/word"):
 
 ################################################################################################
 
-def ProcessFileContents(file_contents, queue, filename):
+def ProcessFileContents(FileContents):
     # Process the file contents (this is a CPU-bound operation)
     TokRex = TokenizeRex()
     LanguageDetector = LidNB(word_mdl=None, char_mdl=os.path.join('ProcessingTools', 'kaznlp', 'lid', 'char.mdl'))
-    FileContent = re.sub('\s+', ' ', "".join(file_contents)).lower()  # remove all whitespace characters
+    FileContent = re.sub('\s+', ' ', "".join(FileContents)).lower()  # remove all whitespace characters
     FileContent = re.sub(r'\b\w\b', '', FileContent)  # remove single character words
     NewFileContent = str()
     PrevWord = ""
@@ -44,11 +45,9 @@ def ProcessFileContents(file_contents, queue, filename):
             continue
         NewFileContent += f"{Word} "
         PrevWord = Word
-    NewFileContent = "\n".join(list(set(NewFileContent.replace("<pun>", "\n").split("\n"))))
-    queue.put_nowait((filename, NewFileContent))
-    print(queue.qsize())
+    return "\n".join(list(set(NewFileContent.replace("<pun>", "\n").split("\n"))))
 
-async def ProcessFile(filename, SetsPath, SetFolder, queue, Executor, semaphore):
+async def ProcessFile(executor, filename, SetsPath, SetFolder, queue, semaphore):
     async with semaphore:  # limit the number of concurrent tasks
         try:
             Filename = os.path.join(SetsPath, SetFolder, filename)
@@ -57,11 +56,11 @@ async def ProcessFile(filename, SetsPath, SetFolder, queue, Executor, semaphore)
                 FileContents = OpenedFilePtr.readlines()
 
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(Executor, ProcessFileContents, FileContents, queue, Filename)
+            NewFileContent = await loop.run_in_executor(executor, ProcessFileContents, FileContents)
+            queue.put_nowait((Filename,NewFileContent))
         except Exception as Ex:
             print(f"[ERR]: Exception: {Ex}")
 
-# New WriteToFile coroutine for handling file writing
 async def WriteToFile(queue, OutputFilepath):
     while True:
         item = await queue.get()
@@ -72,19 +71,19 @@ async def WriteToFile(queue, OutputFilepath):
             OutputFile.write(NewFileContent)
         print(f"[INFO]: Done: {Filename}")
 
-async def ProcessFolder(SetsPath, SetFolder, OutputFilepath, Executor, ProcessFileSemaCount, queue):
+async def ProcessFolder(executor, SetsPath, SetFolder, OutputFilepath, semaphore, queue):
     folder_path = os.path.join(SetsPath, SetFolder)
     filenames = os.listdir(folder_path)
-    semaphore = Semaphore(ProcessFileSemaCount)
-    tasks = [asyncio.create_task(ProcessFile(filename, SetsPath, SetFolder, queue, Executor, semaphore)) for filename in filenames]
+    tasks = [asyncio.create_task(ProcessFile(executor, filename, SetsPath, SetFolder, queue, semaphore)) for filename in filenames]
     await asyncio.gather(*tasks)
 
 async def _PrepareRawDataFiles(SetsPath, OutputFilepath, ProcessFileSemaCount, ProcessFileContentsThreadsCount):
-    TrainSets = os.listdir(SetsPath)
-    Executor = ThreadPoolExecutor(max_workers=ProcessFileContentsThreadsCount)
+    Executor = ProcessPoolExecutor(max_workers=ProcessFileContentsThreadsCount)
+    semaphore = Semaphore(ProcessFileSemaCount)
     queue = asyncio.Queue()
 
-    folder_tasks = [asyncio.create_task(ProcessFolder(SetsPath, SetFolder, OutputFilepath, Executor, ProcessFileSemaCount, queue)) for SetFolder in TrainSets]
+    TrainSets = os.listdir(SetsPath)
+    folder_tasks = [asyncio.create_task(ProcessFolder(Executor, SetsPath, SetFolder, OutputFilepath, semaphore, queue)) for SetFolder in TrainSets]
     writer_task = asyncio.create_task(WriteToFile(queue, OutputFilepath))
 
     await asyncio.gather(*folder_tasks)
@@ -98,7 +97,8 @@ def PrepareRawDataFiles(SetsPath, OutputFilepath, ProcessFileSemaCount, ProcessF
         os.remove(OutputFilepath)
     except OSError:
         pass
-    asyncio.run(_PrepareRawDataFiles(SetsPath, OutputFilepath,ProcessFileSemaCount, ProcessFileContentsThreadsCount))
+    asyncio.run(_PrepareRawDataFiles(SetsPath, OutputFilepath, ProcessFileSemaCount, ProcessFileContentsThreadsCount))
+
 
     
 ################################################################################################
