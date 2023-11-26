@@ -152,8 +152,8 @@ class batch_producer(object):
 class MyModel:
     def __init__(self, config, is_train):
         # get hyperparameters
-        self.batch_size = batch_size = config.batch_size
-        self.num_steps = num_steps = config.num_steps
+        self.batch_size = batch_size = config.BatchSize
+        self.num_steps = num_steps = config.StepsPerEpoch
         init_scale = config.init_scale
         word_emb_dim = hidden_size = config.hidden_size
         word_vocab_size = config.VocabularySize
@@ -260,7 +260,7 @@ def run_epoch(sess, m_train, raw_data, train_op, config, is_train=False, lr=None
     costs = 0
     state_val = sess.run(m_train.init_state)
 
-    batches = batch_producer(raw_data, config.batch_size, config.num_steps)
+    batches = batch_producer(raw_data, config.BatchSize, config.StepsPerEpoch)
     
     for batch_idx, (batch_x, batch_y) in enumerate(batches):
         # run the model on current batch
@@ -275,39 +275,23 @@ def run_epoch(sess, m_train, raw_data, train_op, config, is_train=False, lr=None
             return float('inf');
 
         costs += c
-        iters += config.num_steps
+        iters += config.StepsPerEpoch
         
-        step = iters // config.num_steps
+        step = iters // config.StepsPerEpoch
         if is_train and step % (batches.epoch_size // 10) == 10:
             elapsed_time = (time.time() - start_time)
             print(f'\t[..]: Progress: {step * 1.0 / batches.epoch_size:.2f}, ',
                   f'Train Perplexity: {np.exp(costs / iters):.3f}, ',
                   f'Elapsed Time: {elapsed_time:.3f}s, ',
-                  f'Speed: {iters * config.batch_size / elapsed_time:.2f} wps');
+                  f'Speed: {iters * config.BatchSize / elapsed_time:.2f} wps');
             
     if iters == 0:
         print("Warning: No iterations were run. Returning inf perplexity.")
         return float('inf')
     else:
         return np.exp(costs / iters)
-
-
-def TrainAndValidLSTMModel(ModelConfig, TrainingScenario, TrainData, ValidData):
-    if TrainingScenario["Mode"] == "TrainDataAccumulator":
-            DataPart = TrainingScenario["InitialDataPart"];
-            VocabularyIncrease = TrainingScenario["VocabularyIncrease"];
-            InitialAdd = 0.0;
-            while DataPart <= 1.0:
-                CurrentTrainDataPart = DataPart+InitialAdd;
-                IterationTrainData = DataMaker.GetListPart(TrainData,CurrentTrainDataPart);
-                print(f'[DEBUG][TrainDataAccumulator]: CurrentTrainDataPart={CurrentTrainDataPart} TotalWordsCount={len(IterationTrainData)} ');
-                InitialAdd += VocabularyIncrease;
-                _TrainAndValidLSTMModel(ModelConfig, IterationTrainData, ValidData);
-    elif TrainingScenario["Mode"] == "Default":
-        _TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData);
     
-    
-def _TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
+def TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
     PatienceCounter = 0;
     #print("[DEBUG]: Define a uniform random initializer with the specified initialization scale from the config")
     initializer = tf.compat.v1.random_uniform_initializer(-ModelConfig.init_scale, ModelConfig.init_scale)

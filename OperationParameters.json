@@ -4,13 +4,13 @@
     
     "BasicStages": {
         "PrepareStage" : {
-            "StageEnabled" : true,
+            "StageEnabled" : false,
             "RawTrainDataSetsPath" : "data/TrainSets/",
             "ProcessFileSemaCount" : 50,
             "ProcessFileContentsThreadsCount" : 50
         },
         "TrainAndValidStage" : {
-            "StageEnabled" : false
+            "StageEnabled" : true
         },
         "TestStage" : {
             "StageEnabled" : false,

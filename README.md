@@ -45,3 +45,5 @@ A low perplexity indicates the probability distribution is good at predicting th
 ### Literature:
 
     1. learning rate: https://wiki.loginom.ru/articles/learning-rate.html
+    2. https://medium.com/data-science-365/all-you-need-to-know-about-batch-size-epochs-and-training-steps-in-a-neural-network-f592e12cdb0a
+    

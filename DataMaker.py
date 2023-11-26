@@ -27,6 +27,11 @@ def GetDataSetsDefault(DefaultDataPath="./data/defaultData/word"):
 
 ################################################################################################
 
+def MergeDataWithDefaultSet(DefaultDataPath, OutputFilepath):
+    with open(OutputFilepath, 'a') as OutputFile:
+        with open(f"{DefaultDataPath}/train.txt", 'r') as DefTrainDataFile:
+            OutputFile.write(DefTrainDataFile.read());
+
 def ProcessFileContents(FileContents):
     # Process the file contents (this is a CPU-bound operation)
     TokRex = TokenizeRex()
@@ -94,23 +99,23 @@ async def _PrepareRawDataFiles(SetsPath, OutputFilepath, ProcessFileSemaCount, P
 
 def PrepareRawDataFiles(SetsPath, OutputFilepath, ProcessFileSemaCount, ProcessFileContentsThreadsCount):
     try:
-        os.remove(OutputFilepath)
+        os.remove(OutputFilepath);
     except OSError:
         pass
     asyncio.run(_PrepareRawDataFiles(SetsPath, OutputFilepath, ProcessFileSemaCount, ProcessFileContentsThreadsCount))
-
-
     
 ################################################################################################
         
-def PrepareVocabulary(TrainDataFilename):
+def PrepareVocabulary(TrainDataFilename, Percentage=1.0):
     RawTrainData = [];
     with open(TrainDataFilename, 'r') as TrainDataFile:
-        for SingleLine in TrainDataFile:
+        TotalLinesInFile = sum(1 for _ in TrainDataFile);
+    DesiredLinesCount = int(TotalLinesInFile * Percentage);
+    with open(TrainDataFilename, 'r') as TrainDataFile:
+        for Idx, SingleLine in enumerate(TrainDataFile):
+            if Idx >= DesiredLinesCount:
+                break
             RawTrainData += SingleLine.replace('\n', '<eos>').split();
-
-    # RawTrainData = open(TrainDataFilename, 'r').read().replace('\n', '<eos>').split();
-
     UniqueWords = list(set(RawTrainData));
     TotalWordsCount, VocabularySize = len(RawTrainData), len(UniqueWords);
     print('[INFO][NEW]: Data has %d words, %d unique' % (TotalWordsCount, VocabularySize));
@@ -125,7 +130,7 @@ def PrepareVocabulary(TrainDataFilename):
                 print(f"[WARN][{InputFilename}]: Unknown word found: {Word}");
                 MarkedData.append(word_to_ix["<unk>"]);
         return MarkedData;
-    return VocabularySize, GetReadySet;
+    return VocabularySize, [word_to_ix[word] for word in RawTrainData], GetReadySet;
 
 ##### helpers
 def GetListPart(InputList, Percentage):
