@@ -1,7 +1,6 @@
 {
     "DefaultDataPath" : "data/DefaultData/word/",
-    "DefaultDataOnly" : false,
-    
+    "DefaultDataOnly" : true,
     "BasicStages": {
         "PrepareStage" : {
             "StageEnabled" : false,
@@ -21,9 +20,5 @@
             "InitialDataPart"    : 0.01,
             "VocabularyIncrease" : 0.01
         }
-    },
-    "UseStage" : {
-        "StageEnabled" : false,
-        "AppToRunWith" : ""
     }
 }

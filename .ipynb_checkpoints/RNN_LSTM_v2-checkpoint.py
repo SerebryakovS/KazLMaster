@@ -161,7 +161,9 @@ class MyModel:
         # language model
         #with tf.variable_scope('model', initializer=initializer):
         # embedding matrix
-        word_embedding = tf.compat.v1.get_variable("word_embedding", [word_vocab_size, word_emb_dim])
+        with tf.compat.v1.variable_scope('word_embedding_scope', reuse=tf.AUTO_REUSE):
+            word_embedding = tf.compat.v1.get_variable("word_embedding", [word_vocab_size, word_emb_dim])
+
         # placeholders for training data and labels
         self.x = tf.compat.v1.placeholder(tf.int32, [batch_size, num_steps])
         self.y = tf.compat.v1.placeholder(tf.int32, [batch_size, num_steps])
@@ -346,7 +348,7 @@ def TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
             if Epoch >= ModelConfig.MaxEpochNumber:
                 print(f"[DEBUG]: Early stop. MaxEpochNumber={ModelConfig.MaxEpochNumber} reached");
                 break;
-            
+    tf.compat.v1.reset_default_graph()
 
 
 

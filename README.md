@@ -33,6 +33,14 @@ Here used a smarter approach of using strategies that adapt the learning rate ba
 
 
 
+### BERT
+
+BERT is based on the Transformer model architecture instead of LSTMs.
+A transformer model is a neural network that learns context and thus meaning by tracking relationships in sequential data like the words in this sentence. 
+One key advantage of Transformers over LSTMs is their more effective handling of long-range dependencies, due to the self-attention mechanism. This allows them to weigh the importance of various positions in the input sequence, whereas LSTMs might struggle with retaining information from distant positions in longer sequences.
+Both Transformers and LSTMs have shown excellent performance in tasks like machine translation, speech recognition, text classification, and more.
+
+
 Notes:
 1. Common practices for setting the number of epochs include monitoring the model's performance on a validation dataset and stopping training early (early stopping) if the performance no longer improves. It helps prevent overfitting and ensures that the model generalizes well to unseen data.
 
@@ -46,4 +54,4 @@ A low perplexity indicates the probability distribution is good at predicting th
 
     1. learning rate: https://wiki.loginom.ru/articles/learning-rate.html
     2. https://medium.com/data-science-365/all-you-need-to-know-about-batch-size-epochs-and-training-steps-in-a-neural-network-f592e12cdb0a
-    
+    3. https://www.analyticsvidhya.com/blog/2023/06/step-by-step-bert-implementation-guide/

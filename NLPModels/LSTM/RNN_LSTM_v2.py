@@ -161,7 +161,9 @@ class MyModel:
         # language model
         #with tf.variable_scope('model', initializer=initializer):
         # embedding matrix
-        word_embedding = tf.compat.v1.get_variable("word_embedding", [word_vocab_size, word_emb_dim])
+        with tf.compat.v1.variable_scope('word_embedding_scope', reuse=tf.compat.v1.AUTO_REUSE):
+            word_embedding = tf.compat.v1.get_variable("word_embedding", [word_vocab_size, word_emb_dim])
+
         # placeholders for training data and labels
         self.x = tf.compat.v1.placeholder(tf.int32, [batch_size, num_steps])
         self.y = tf.compat.v1.placeholder(tf.int32, [batch_size, num_steps])
@@ -197,10 +199,15 @@ class MyModel:
         biases = tf.compat.v1.get_variable('biases', [word_vocab_size], dtype=tf.float32)
         logits = tf.matmul(output, weights) + biases
         ###########################################################################
-        loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
-             [logits],
-             [tf.reshape(self.y, [-1])],
-             [tf.ones([batch_size * num_steps], dtype=tf.float32)])
+        # loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example(
+        #      [logits],
+        #      [tf.reshape(self.y, [-1])],
+        #      [tf.ones([batch_size * num_steps], dtype=tf.float32)])
+        loss = tf.keras.losses.sparse_categorical_crossentropy(
+            tf.reshape(self.y, [-1]),
+            logits,
+            from_logits=True
+        )
         loss = tf.reduce_mean(loss)
         ###########################################################################
         self.cost = cost = tf.reduce_sum(loss) / batch_size
@@ -211,8 +218,9 @@ class MyModel:
         grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars), config.max_grad_norm)
         optimizer = tf.compat.v1.train.GradientDescentOptimizer(self.lr)
         ###########################################################################
-        self.train_op = optimizer.apply_gradients(zip(grads, tvars),
-                                                  global_step = tf.contrib.framework.get_or_create_global_step())
+        # self.train_op = optimizer.apply_gradients(zip(grads, tvars),
+        #                                           global_step = tf.contrib.framework.get_or_create_global_step())
+        self.train_op = optimizer.apply_gradients(zip(grads, tvars))
         ###########################################################################
         self.new_lr = tf.compat.v1.placeholder(tf.float32, shape=[], name="new_learning_rate")
         self.lr_update = tf.compat.v1.assign(self.lr, self.new_lr)
@@ -346,14 +354,14 @@ def TrainAndValidLSTMModel(ModelConfig, TrainData, ValidData):
             if Epoch >= ModelConfig.MaxEpochNumber:
                 print(f"[DEBUG]: Early stop. MaxEpochNumber={ModelConfig.MaxEpochNumber} reached");
                 break;
-            
+    tf.compat.v1.reset_default_graph()
 
 
 
 def TestLSTMModel(ModelConfig, TestData, DataLabel):
     initializer = tf.compat.v1.random_uniform_initializer(-ModelConfig.init_scale, ModelConfig.init_scale)
     #print("[DEBUG]: Define the test model with the same variable scope as the training model")
-    with tf.compat.v1.variable_scope('Model', reuse=tf.AUTO_REUSE, initializer=initializer):
+    with tf.compat.v1.variable_scope('Model', reuse=tf.compat.v1.AUTO_REUSE, initializer=initializer):
         m_test = MyModel(config=ModelConfig, is_train=False)
     saver = tf.train.Saver()
     with tf.compat.v1.Session(config=GPUconfig) as sess:
