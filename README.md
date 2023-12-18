@@ -1,5 +1,21 @@
 ## Kazakh language NLP processing tools/models collection
 
+
+### INSTALLATION PROCESS
+```
+mkdir -p ~/miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+rm -rf ~/miniconda3/miniconda.sh
+git clone --recursive git@github.com:SerebryakovS/KazLMaster.git && cd KazLMaster
+source RunConda.sh # or: ~/miniconda3/bin/conda init bash
+conda create -n tf-gpu tensorflow-gpu
+conda activate tf-gpu
+pip install 'transformers[tf-gpu]'
+!pip install keras
+```
+
+
 ### Neural LSTM Language Modeling experiments for Kazakh (fork)
 
 This project is the fork from the original LSTM Kazakh language model presented by: https://github.com/Baghdat/LSTM-LM.git
@@ -55,3 +71,4 @@ A low perplexity indicates the probability distribution is good at predicting th
     1. learning rate: https://wiki.loginom.ru/articles/learning-rate.html
     2. https://medium.com/data-science-365/all-you-need-to-know-about-batch-size-epochs-and-training-steps-in-a-neural-network-f592e12cdb0a
     3. https://www.analyticsvidhya.com/blog/2023/06/step-by-step-bert-implementation-guide/
+
