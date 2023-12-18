@@ -11,6 +11,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import tensorflow as tf
 
 # tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+print("[TF]: Count of available GPUs: ", len(tf.config.list_physical_devices('GPU')))
+
 
 GPUconfig = tf.compat.v1.ConfigProto();
 GPUconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
@@ -184,7 +186,7 @@ class MyModel:
         if is_train:
             cell2 = tf.compat.v1.nn.rnn_cell.DropoutWrapper(cell2, output_keep_prob=config.keep_prob)
         cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([cell1, cell2])
-        
+
         self.init_state = cell.zero_state(batch_size, dtype=tf.float32)
 
         state = self.init_state

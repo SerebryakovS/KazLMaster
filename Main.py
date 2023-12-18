@@ -3,7 +3,7 @@ import json;
 import logging;
 import DataMaker
 from NLPModels.LSTM import LSTM
-# from NLPModels.BERT import BERT
+from NLPModels.BERT import BERT
 
 AppName = os.getcwd().split("/")[-1];
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO);
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     
     ModelController = {
         "LSTM" : LSTM.ModelController(ModelOperationParameters, AppName),
-        # "BERT" : BERT.ModelController(ModelOperationParameters, AppName)
+        "BERT" : BERT.ModelController(ModelOperationParameters, AppName)
     }[MainConfig.NLPModel]
         
     ModelController.Run(DataMaker);

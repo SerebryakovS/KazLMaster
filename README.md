@@ -9,12 +9,11 @@ bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
 rm -rf ~/miniconda3/miniconda.sh
 git clone --recursive git@github.com:SerebryakovS/KazLMaster.git && cd KazLMaster
 source RunConda.sh # or: ~/miniconda3/bin/conda init bash
-conda create -n tf-gpu tensorflow-gpu
-conda activate tf-gpu
-pip install 'transformers[tf-gpu]'
-!pip install keras
+conda create -n nlpenv tensorflow-gpu 'transformers[tf-gpu]'
+conda activate nlpenv
+conda install numpy=1.19.5
+conda install keras
 ```
-
 
 ### Neural LSTM Language Modeling experiments for Kazakh (fork)
 

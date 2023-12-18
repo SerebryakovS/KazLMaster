@@ -1,4 +1,6 @@
 import tensorflow as tf
+GPUconfig = tf.compat.v1.ConfigProto();
+GPUconfig.gpu_options.per_process_gpu_memory_fraction = 0.4
 from transformers import BertTokenizer, TFBertForSequenceClassification, BertConfig
 import os
 import numpy as np
@@ -8,13 +10,13 @@ class ModelController(object):
         self.Tag = Tag
         self.OperationParameters = ModelOperationParameters
         self.Tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-uncased')
-        self.Model = TFBertForSequenceClassification.from_pretrained('bert-base-multilingual-uncased')
+        #self.Model = TFBertForSequenceClassification.from_pretrained('bert-base-multilingual-uncased')
     def PrepareData(self, TrainDataFilename, MaxSequenceLength=512):
         input_ids = []
         attention_masks = []
 
         
-        '''
+
         with open(TrainDataFilename, 'r', encoding='utf-8') as file:
             for line in file:
                 tokens = self.Tokenizer.encode_plus(line, max_length=MaxSequenceLength, 
@@ -22,7 +24,8 @@ class ModelController(object):
                                                     add_special_tokens=True)
                 input_ids.append(tokens['input_ids'])
                 attention_masks.append(tokens['attention_mask'])
-        '''
+
+
         return input_ids, attention_masks
 
     def Train(self, TrainData):
@@ -40,4 +43,4 @@ class ModelController(object):
         DefaultDataPath = f'{CurrentPath}/{self.OperationParameters.DefaultDataPath}'
 
         if DefaultDataOnly is True:
-            print(self.PrepareData(DefaultDataPath))
+            print(self.PrepareData(f"{DefaultDataPath}/train.txt"))
