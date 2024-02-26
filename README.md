@@ -55,6 +55,10 @@ A transformer model is a neural network that learns context and thus meaning by 
 One key advantage of Transformers over LSTMs is their more effective handling of long-range dependencies, due to the self-attention mechanism. This allows them to weigh the importance of various positions in the input sequence, whereas LSTMs might struggle with retaining information from distant positions in longer sequences.
 Both Transformers and LSTMs have shown excellent performance in tasks like machine translation, speech recognition, text classification, and more.
 
+Text classification in NLP involves categorizing and assigning predefined labels or categories to text documents, sentences, or phrases based on their content. Text classification aims to automatically determine the class or category to which a piece of text belongs.
+
+
+
 
 Notes:
 1. Common practices for setting the number of epochs include monitoring the model's performance on a validation dataset and stopping training early (early stopping) if the performance no longer improves. It helps prevent overfitting and ensures that the model generalizes well to unseen data.
@@ -70,4 +74,28 @@ A low perplexity indicates the probability distribution is good at predicting th
     1. learning rate: https://wiki.loginom.ru/articles/learning-rate.html
     2. https://medium.com/data-science-365/all-you-need-to-know-about-batch-size-epochs-and-training-steps-in-a-neural-network-f592e12cdb0a
     3. https://www.analyticsvidhya.com/blog/2023/06/step-by-step-bert-implementation-guide/
+    4. https://medium.com/@MilkKnight/build-your-lstm-language-model-with-tensorflow-3416142c9919
+    5. https://medium.com/@manindersingh120996/accelerate-your-text-data-analysis-with-custom-bert-word-embeddings-and-tensorflow-45590cf9c54
+    6. https://medium.com/unpackai/perplexity-and-accuracy-in-classification-114b57bd820d
+
+### Articles:
+
+    1. https://www.mdpi.com/2504-2289/6/4/123
+    2. https://dergipark.org.tr/en/download/article-file/2490930
+
+
+
+So numerical representation of words in order to train ML models is termed Word embedding.
+
+
+### Claffification Project:
+
+conda update numpy
+
+We'll focus on Masked Language Modeling (MLM) as it's a common and widely applicable task for understanding and leveraging the capabilities of language models.
+In MLM, the model is trained to predict the identity of masked tokens in a sequence. This task is essential for models like BERT, which learn to understand the context of a word in a sentence in a bidirectional manner.
+Out dataset, kz-transformers/multidomain-kazakh-dataset, is already suitable for MLM as it's text-based. The preparation involves tokenizing the text data and creating masked tokens for the model to predict.
+
+Creating standardized classes for both LSTM and BERT models to perform a specific NLP task, such as masked language modeling (MLM), provides a clean and efficient way to compare their performance. Given the complexity of the MLM task and the fact that LSTM models don't natively support MLM in the same way BERT and other transformer models do, we'll adapt our approach to fit a more generalized comparison framework.
+
 
