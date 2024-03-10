@@ -1,7 +1,7 @@
 # Data.py
 from datasets import load_dataset
 import tensorflow as tf
-from transformers import BertTokenizer
+from transformers import BertTokenizer, GPT2Tokenizer
 import numpy as np
 
 def DetermineTimeSensitiveLabel(SimplifiedTags):
@@ -21,12 +21,13 @@ def DetermineCommercialIntentLabel(SimplifiedTags):
     return 1 if any(Tag in CommercialEntities for Tag in SimplifiedTags) else 0
 
 class DataPreparation:
-    def __init__(self, DatasetName="yeshpanovrustem/ner-kazakh", BertModelName="bert-base-multilingual-cased"):
+    def __init__(self, DatasetName, BertModelName, GptModelName):
         self.HuggingFaceDataset = load_dataset(DatasetName);
         print(f"[OK]: Dataset loaded: {self.HuggingFaceDataset}");
         self.CalculateVocabulary();
         self.AddClassificationFlags();
         self.BertTokenizer = BertTokenizer.from_pretrained(BertModelName);
+        self.GptTokenizer  = GPT2Tokenizer.from_pretrained(GptModelName);
     def CalculateVocabulary(self):
         AllTokens = [Token for Sample in self.HuggingFaceDataset['train'] for Token in Sample['tokens']];
         self.Token2Index = {Token: Idx for Idx, Token in enumerate(sorted(set(AllTokens)))};
@@ -108,8 +109,10 @@ class DataPreparation:
     def GetDatasets(self, ModelType):
         if ModelType == "LSTM":
             return self.GetTensorFlowDatasets();
-        if ModelType == "BERT":
-            return self.GetTransformersDatasets();
+        elif ModelType == "BERT" or ModelType == "GPT":
+            return self.GetTransformersDatasets(ModelType=ModelType);
+        else:
+            raise ValueError("[ERR]: ModelType not supported: " + ModelType);
 
     def GetHuggingFaceDatasets(self):
         return self.HuggingFaceDataset['train'], self.HuggingFaceDataset['validation'], self.HuggingFaceDataset['test'];
@@ -147,9 +150,13 @@ class DataPreparation:
         TestSet  = GenerateDataset(self.HuggingFaceDataset['test'])
         return TrainSet, ValidSet, TestSet
 
-    def GetTransformersDatasets(self, BatchSize=32):
+    def GetTransformersDatasets(self, ModelType='BERT', BatchSize=32):
         def Encode(Text):
-            encoding = self.BertTokenizer.encode_plus(
+            if ModelType == 'BERT':
+                Tokenizer = self.BertTokenizer;
+            elif ModelType == 'GPT':
+                Tokenizer = self.GptTokenizer;
+            Encoding = Tokenizer.encode_plus(
                 Text,
                 add_special_tokens=True,
                 max_length=128,
@@ -159,7 +166,7 @@ class DataPreparation:
                 return_attention_mask=True,
                 return_tensors='np',
             );
-            return encoding['input_ids'], encoding['attention_mask']
+            return Encoding['input_ids'], Encoding['attention_mask'];
         def EncodeSamples(Sample):
             Text = ' '.join(Sample['tokens'])
             input_ids, attention_mask = Encode(Text)
@@ -191,6 +198,28 @@ class DataPreparation:
 
 
 if __name__ == "__main__":
-    DataPrepare = DataPreparation();
+    DataPrepare = DataPreparation()
+    TrainSet, ValidSet, TestSet = DataPrepare.GetHuggingFaceDatasets();
+    def SummarizeDataset(DatasetSplit, SplitName):
+        TotalSequences = len(DatasetSplit);
+        UniqueTokens = set(token for sample in DatasetSplit for token in sample['tokens']);
+        VocabularySize = len(UniqueTokens);
+        TimeSensitiveCount = sum(sample['time_sensitive'] for sample in DatasetSplit)
+        OrganizationalInteractionCount = sum(sample['organizational_interaction'] for sample in DatasetSplit)
+        PersonalRelevanceCount = sum(sample['personal_relevance'] for sample in DatasetSplit)
+        CommercialIntentCount = sum(sample['commercial_intent'] for sample in DatasetSplit)
+        print(f"--- {SplitName.upper()} SET SUMMARY ---");
+        print(f"Total Sequences: {TotalSequences}");
+        print(f"Vocabulary Size: {VocabularySize}");
+        print("Label Counts:");
+        print(f"\tTime-Sensitive: {TimeSensitiveCount}");
+        print(f"\tOrganizational Interaction: {OrganizationalInteractionCount}");
+        print(f"\tPersonal Relevance: {PersonalRelevanceCount}");
+        print(f"\tCommercial Intent: {CommercialIntentCount}");
+        print("\n");
+
+    SummarizeDataset(TrainSet, "train");
+    SummarizeDataset(ValidSet, "validation");
+    SummarizeDataset(TestSet, "test");
 
 

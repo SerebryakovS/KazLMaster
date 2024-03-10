@@ -1,6 +1,7 @@
 # Main.py
 from Model_LSTM import LSTMModel
 from Model_BERT import BERTModel
+from Model_GPT import GPTModel
 from Data import DataPreparation
 import matplotlib.pyplot as Plot
 import numpy as np
@@ -32,8 +33,10 @@ def PlotHistory(History, ModelName):
     Plot.close();
 
 def Main():
-    CountEpochs = 20;
-    DataPrepare = DataPreparation();
+    CountEpochs = 10;
+    DataPrepare = DataPreparation(
+        DatasetName="yeshpanovrustem/ner-kazakh", BertModelName=BERTModel.ModelName, GptModelName=GptModel.ModelName
+    );
     ######################################################################################################################
     TrainSet, ValidSet, TestSet = DataPrepare.GetDatasets(ModelType="LSTM");
     LSTM = LSTMModel(DataPrepare.VocabularySize,
@@ -44,9 +47,15 @@ def Main():
     print(LSTM.Evaluate(TestSet));
     ######################################################################################################################
     TrainSet, ValidSet, TestSet = DataPrepare.GetDatasets(ModelType="BERT");
-    BERT = BERTModel();
+    BERT = BERTModel(MaxLength=128);
     PlotHistory(BERT.Train(TrainSet, ValidSet, CountEpochs), "BERT");
     print(BERT.Evaluate(TestSet));
     ######################################################################################################################
+    TrainSet, ValidSet, TestSet = DataPrepare.GetDatasets(ModelType="GPT");
+    GPT = GPTModel(MaxLength=128)
+    PlotHistory(GPT.Train(TrainSet, ValidSet, EpochsCount=CountEpochs), "GPT");
+    print(GPT.Evaluate(TestSet));
+    ######################################################################################################################
+
 if __name__ == "__main__":
     Main();

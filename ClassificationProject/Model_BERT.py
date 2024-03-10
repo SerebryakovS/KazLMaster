@@ -5,11 +5,12 @@ from tensorflow.keras import layers, models
 from tensorflow.keras.optimizers import Adam
 
 class BERTModel:
-    def __init__(self, BertModelName='bert-base-multilingual-cased', MaxLength=128):
-        self.Model = self.BuildModel(BertModelName, MaxLength);
+    ModelName = 'bert-base-multilingual-cased';
+    def __init__(self, MaxLength=128):
+        self.Model = self.BuildModel(MaxLength);
         print("[OK]: BERT model building completed.");
-    def BuildModel(self, BertModelName, MaxLength):
-        BertLayer = TFBertForSequenceClassification.from_pretrained(BertModelName, num_labels=4);
+    def BuildModel(self, MaxLength):
+        BertLayer = TFBertForSequenceClassification.from_pretrained(BERTModel.ModelName, num_labels=4);
         BertLayer.trainable = False
         InputIds = layers.Input(shape=(MaxLength,), dtype=tf.int32, name="input_ids")
         AttentionMask = layers.Input(shape=(MaxLength,), dtype=tf.int32, name="attention_mask")
