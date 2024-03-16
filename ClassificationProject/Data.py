@@ -156,6 +156,7 @@ class DataPreparation:
                 Tokenizer = self.BertTokenizer;
             elif ModelType == 'GPT':
                 Tokenizer = self.GptTokenizer;
+                Tokenizer.pad_token = Tokenizer.eos_token;
             Encoding = Tokenizer.encode_plus(
                 Text,
                 add_special_tokens=True,
@@ -170,13 +171,13 @@ class DataPreparation:
         def EncodeSamples(Sample):
             Text = ' '.join(Sample['tokens'])
             input_ids, attention_mask = Encode(Text)
-            Labels = {
-                'time_sensitive': np.array(Sample['time_sensitive']),
-                'organizational_interaction': np.array(Sample['organizational_interaction']),
-                'personal_relevance': np.array(Sample['personal_relevance']),
-                'commercial_intent': np.array(Sample['commercial_intent'])
-            }
-            return (input_ids, attention_mask), Labels
+            Labels = [
+                Sample['time_sensitive'],
+                Sample['organizational_interaction'],
+                Sample['personal_relevance'],
+                Sample['commercial_intent']
+            ]
+            return (input_ids, attention_mask), np.array(Labels, dtype=np.int32);
 
         def GenerateDataset(DatasetSplit):
             Samples, Labels = [], []
@@ -184,13 +185,18 @@ class DataPreparation:
                 (input_ids, attention_mask), _Labels = EncodeSamples(Sample)
                 Samples.append((input_ids, attention_mask))
                 Labels.append(_Labels)
-            InputIdsTensor = np.vstack([sample[0] for sample in Samples])
-            AttentionMaskTensor = np.vstack([sample[1] for sample in Samples])
-            LabelsTensor = {Key: np.vstack([Sample[Key] for Sample in Labels]) for Key in Labels[0]}
-            Dataset = tf.data.Dataset.from_tensor_slices(((InputIdsTensor, AttentionMaskTensor), LabelsTensor))
+            InputIdsTensor = np.vstack([Sample[0] for Sample in Samples])
+            AttentionMaskTensor = np.vstack([Sample[1] for Sample in Samples])
+            LabelsTensor = np.stack([Sample for Sample in Labels], axis=0)
+
+            Dataset = tf.data.Dataset.from_tensor_slices((
+                (tf.constant(InputIdsTensor, dtype=tf.int32), tf.constant(AttentionMaskTensor, dtype=tf.int32)),
+                tf.constant(LabelsTensor, dtype=tf.int32)
+            ))
             Dataset = Dataset.batch(BatchSize)
             Dataset = Dataset.prefetch(tf.data.experimental.AUTOTUNE)
             return Dataset
+
         TrainSet = GenerateDataset(self.HuggingFaceDataset['train'])
         ValidSet = GenerateDataset(self.HuggingFaceDataset['validation'])
         TestSet  = GenerateDataset(self.HuggingFaceDataset['test'])

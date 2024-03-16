@@ -1,5 +1,6 @@
 # Model_LSTM.py
 import tensorflow as tf
+from tensorflow.keras.metrics import Precision, Recall, AUC
 from tensorflow.keras import layers, models
 
 class LSTMModel:
@@ -32,7 +33,7 @@ class LSTMModel:
                           'personal_relevance': 'binary_crossentropy',
                           'commercial_intent': 'binary_crossentropy'
                       },
-                      metrics=['accuracy'])
+                      metrics=['accuracy', Precision(), Recall(), AUC()]);
         return Model
 
     def Train(self, TrainDataset, ValidationDataset, EpochsCount=10):

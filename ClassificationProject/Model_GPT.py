@@ -1,6 +1,8 @@
 # Model_GPT.py
 import tensorflow as tf
 from transformers import TFGPT2ForSequenceClassification, GPT2Tokenizer
+from tensorflow.keras.metrics import Precision, Recall, AUC
+from tensorflow.keras import layers, models
 from tensorflow.keras.optimizers import Adam
 
 class GPTModel:
@@ -8,18 +10,20 @@ class GPTModel:
     def __init__(self, MaxLength=128):
         self.Model = self.BuildModel(MaxLength);
         print("[OK]: GPT model building completed.");
+
     def BuildModel(self, MaxLength):
         GptLayer = TFGPT2ForSequenceClassification.from_pretrained(GPTModel.ModelName, num_labels=4);
-        InputIds = tf.keras.layers.Input(shape=(MaxLength,), dtype=tf.int32, name="input_ids");
-        AttentionMask = tf.keras.layers.Input(shape=(MaxLength,), dtype=tf.int32, name="attention_mask");
+        InputIds = layers.Input(shape=(MaxLength,), dtype=tf.int32, name="input_ids");
+        AttentionMask = layers.Input(shape=(MaxLength,), dtype=tf.int32, name="attention_mask");
 
-        GptInputs = {'input_ids': InputIds, 'attention_mask': AttentionMask};
-        GptOutput = GptLayer(GptInputs)[0];
+        GptOutputs = GptLayer(InputIds, attention_mask=AttentionMask);
+        Logits = GptOutputs.logits;
+        Logits = tf.reduce_mean(Logits, axis=1);
 
-        Model = tf.keras.Model(inputs=[InputIds, AttentionMask], outputs=GptOutput);
+        Model = models.Model(inputs=[InputIds, AttentionMask], outputs=Logits)
         Model.compile(optimizer=Adam(learning_rate=3e-5),
                       loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
-                      metrics=['accuracy']);
+                      metrics=['accuracy', Precision(), Recall(), AUC()]);
         return Model;
 
     def Train(self, TrainDataset, ValidationDataset, EpochsCount=10):
