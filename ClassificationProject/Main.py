@@ -6,26 +6,43 @@ from Data import DataPreparation
 import matplotlib.pyplot as Plot
 import numpy as np
 
-def PlotMetrics(Histories, Labels):
-    BaseMetrics = ['loss', 'accuracy', 'precision', 'recall', 'auc'];
+def PlotMetric(HistoryObjects, Labels, BaseMetric, MetricType):
+    Plot.figure(figsize=(12, 8))
+    for History, Label in zip(HistoryObjects, Labels):
+        MetricName = f'{MetricType}_{BaseMetric}' if f'{MetricType}_{BaseMetric}' in History.history else BaseMetric
+        if MetricType == 'val':
+            MetricName = 'val_' + MetricName
+
+        if MetricName in History.history:
+            MetricValues = History.history[MetricName]
+            Epochs = range(1, len(MetricValues) + 1)
+            Plot.plot(Epochs, MetricValues, 'o-', label=f'{Label} {MetricType} {BaseMetric.capitalize()}')
+
+    Plot.title(f'{MetricType.capitalize()} {BaseMetric.capitalize()}')
+    Plot.xlabel('Epochs')
+    Plot.ylabel(BaseMetric.capitalize())
+    Plot.legend()
+    Plot.savefig(f'{MetricType}_{BaseMetric}.jpg')
+    Plot.close()
+
+def PlotMetrics(HistoryObjects, Labels):
+    BaseMetrics = ['loss', 'accuracy', 'precision', 'recall', 'auc']
+
+    # Adjust metric names for BERT and GPT if needed
+    AdjustedHistories = []
+    for History in HistoryObjects:
+        AdjustedHistory = {}
+        for key, value in History.history.items():
+            new_key = key.replace(' 1', '').replace(' 2', '')
+            AdjustedHistory[new_key] = value
+        AdjustedHistories.append(type('History', (object,), {'history': AdjustedHistory}))
+
     for BaseMetric in BaseMetrics:
-        SpecificMetrics = [f'{task}_{BaseMetric}' for task in ['time_sensitive', 'organizational_interaction', 'personal_relevance', 'commercial_intent']];
-        Plot.figure(figsize=(12, 8));
-        for History, Label in zip(Histories, Labels):
-            print("_______________",History.history);
-            for SpecificMetric in SpecificMetrics:
-                if SpecificMetric in History.history:
-                    TrainMetric = History.history[SpecificMetric];
-                    ValidMetric = History.history[f'val_{SpecificMetric}'];
-                    Epochs = range(1, len(TrainMetric) + 1);
-                    Plot.plot(Epochs, TrainMetric, 'o-', label=f'{Label} {SpecificMetric.capitalize()} Training');
-                    Plot.plot(Epochs, ValidMetric, 'o--', label=f'{Label} {SpecificMetric.capitalize()} Validation');
-        Plot.title(f'Training and Validation {BaseMetric.capitalize()}');
-        Plot.xlabel('Epochs');
-        Plot.ylabel(BaseMetric.capitalize());
-        Plot.legend();
-        Plot.savefig(f'ModelComparison_{BaseMetric}.jpg');
-        Plot.close();
+        # Plot training metrics
+        PlotMetric(AdjustedHistories, Labels, BaseMetric, 'train')
+        # Plot validation metrics
+        PlotMetric(AdjustedHistories, Labels, BaseMetric, 'val')
+
 
 def PrintEvaluationResults(Results, HistoryObjects, Labels):
     print("Model Evaluation Results:")
@@ -40,15 +57,17 @@ def PrintEvaluationResults(Results, HistoryObjects, Labels):
             print(f"\t{MetricName.replace('_', ' ').capitalize()}: {MetricValue:.4f}");
 
 def Main():
-    CountEpochs = 1;
+    CountEpochs = 10;
     DataPrepare = DataPreparation(
         DatasetName="yeshpanovrustem/ner-kazakh", BertModelName=BERTModel.ModelName, GptModelName=GPTModel.ModelName
     );
     #######################################################################################################################
     TrainSet, ValidSet, TestSet = DataPrepare.GetDatasets(ModelType="LSTM");
-    LSTM = LSTMModel(DataPrepare.VocabularySize,
-                     EmbeddingDim = 256, # Dimensionality of the embedding layer. Common values are 50, 100, 256, and 512.
-                     LSTMUnits    = 128  # Represents the number of LSTM units (or neurons) in the LSTM layer
+    LSTM = LSTMModel( MaxLength       = 128,
+                      VocabularySize  = DataPrepare.VocabularySize,
+                      EmbeddingDim    = 256, # Dimensionality of the embedding layer. Common values are 50, 100, 256, and 512.
+                      LSTMUnits       = 128, # Represents the number of LSTM units (or neurons) in the LSTM layer
+                      NumberOfClasses = 4
     );
     LSTMResults = [LSTM.Train(TrainSet, ValidSet, CountEpochs), LSTM.Evaluate(TestSet)];
     #######################################################################################################################
@@ -64,10 +83,9 @@ def Main():
     Results        = [LSTMResults[1], BERTResults[1], GPTResults[1]];
     Labels         = ['LSTM', 'BERT', 'GPT'];
 
-    # HistoryObjects = [BERTResults[0]];
-    # Results        = [BERTResults[1]];
-    # Labels         = ['BERT'];
-
+    # HistoryObjects = [LSTMResults[0]];
+    # Results        = [LSTMResults[1]];
+    # Labels         = ['LSTM'];
 
     PlotMetrics(HistoryObjects, Labels);
     PrintEvaluationResults(Results, HistoryObjects, Labels);

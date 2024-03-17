@@ -106,68 +106,33 @@ class DataPreparation:
                 },
                 batched=False
             );
-    def GetDatasets(self, ModelType):
-        if ModelType == "LSTM":
-            return self.GetTensorFlowDatasets();
-        elif ModelType == "BERT" or ModelType == "GPT":
-            return self.GetTransformersDatasets(ModelType=ModelType);
-        else:
-            raise ValueError("[ERR]: ModelType not supported: " + ModelType);
-
     def GetHuggingFaceDatasets(self):
         return self.HuggingFaceDataset['train'], self.HuggingFaceDataset['validation'], self.HuggingFaceDataset['test'];
-    def GetTensorFlowDatasets(self, BatchSize=32):
-        def Encode(Tokens):
-            return [self.Token2Index.get(Token, 0) for Token in Tokens];
-        MaxLength = max(len(Tokens) for Tokens in self.HuggingFaceDataset['train']['tokens']);
-        def EncodeSamples(Sample):
-            Tokens = Sample['tokens'];
-            EncodedTokens = Encode(Tokens);
-            PaddedSequences = tf.keras.preprocessing.sequence.pad_sequences(
-                [EncodedTokens], maxlen=MaxLength, padding='post', truncating='post'
-            )[0]
-            Labels = {
-                'time_sensitive': np.array(Sample['time_sensitive']),
-                'organizational_interaction': np.array(Sample['organizational_interaction']),
-                'personal_relevance': np.array(Sample['personal_relevance']),
-                'commercial_intent': np.array(Sample['commercial_intent'])
-            };
-            return PaddedSequences, Labels;
-        def GenerateDataset(DatasetSplit):
-            Samples, Labels = [], [];
-            for Sample in DatasetSplit:
-                EncodedSample, _Labels = EncodeSamples(Sample);
-                Samples.append(EncodedSample);
-                Labels.append(_Labels);
-            SamplesTensor = tf.convert_to_tensor(Samples, dtype=tf.int32)
-            LabelsTensor = {Key: tf.convert_to_tensor([Sample[Key] for Sample in Labels]) for Key in Labels[0]};
-            Dataset = tf.data.Dataset.from_tensor_slices((SamplesTensor, LabelsTensor));
-            Dataset = Dataset.batch(BatchSize);
-            Dataset = Dataset.prefetch(tf.data.experimental.AUTOTUNE);
-            return Dataset
-        TrainSet = GenerateDataset(self.HuggingFaceDataset['train'])
-        ValidSet = GenerateDataset(self.HuggingFaceDataset['validation'])
-        TestSet  = GenerateDataset(self.HuggingFaceDataset['test'])
-        return TrainSet, ValidSet, TestSet
 
-    def GetTransformersDatasets(self, ModelType='BERT', BatchSize=32):
+    def GetDatasets(self, ModelType='BERT', BatchSize=32):
         def Encode(Text):
-            if ModelType == 'BERT':
-                Tokenizer = self.BertTokenizer;
-            elif ModelType == 'GPT':
-                Tokenizer = self.GptTokenizer;
-                Tokenizer.pad_token = Tokenizer.eos_token;
-            Encoding = Tokenizer.encode_plus(
-                Text,
-                add_special_tokens=True,
-                max_length=128,
-                return_token_type_ids=False,
-                padding='max_length',
-                truncation=True,
-                return_attention_mask=True,
-                return_tensors='np',
-            );
-            return Encoding['input_ids'], Encoding['attention_mask'];
+            if ModelType in ['BERT', 'GPT']:
+                if ModelType == 'BERT':
+                    Tokenizer = self.BertTokenizer
+                elif ModelType == 'GPT':
+                    Tokenizer = self.GptTokenizer
+                    Tokenizer.pad_token = Tokenizer.eos_token
+                Encoding = Tokenizer.encode_plus(
+                    Text,
+                    add_special_tokens=True,
+                    max_length=128,
+                    return_token_type_ids=False,
+                    padding='max_length',
+                    truncation=True,
+                    return_attention_mask=True,
+                    return_tensors='np',
+                )
+                return Encoding['input_ids'], Encoding.get('attention_mask', None)
+            elif ModelType == 'LSTM':
+                # Assuming Token2Index mapping is available for LSTM
+                Tokens = Text.split()  # Basic tokenization based on whitespace
+                EncodedTokens = np.array([self.Token2Index.get(token, 0) for token in Tokens], dtype=np.int32)
+                return np.pad(EncodedTokens, (0, 128 - len(EncodedTokens)), mode='constant'), None  # Padding to match fixed length
         def EncodeSamples(Sample):
             Text = ' '.join(Sample['tokens'])
             input_ids, attention_mask = Encode(Text)
@@ -177,30 +142,40 @@ class DataPreparation:
                 Sample['personal_relevance'],
                 Sample['commercial_intent']
             ]
-            return (input_ids, attention_mask), np.array(Labels, dtype=np.int32);
-
-        def GenerateDataset(DatasetSplit):
+            return (input_ids, attention_mask), np.array(Labels, dtype=np.int32)
+        def GenerateDataset(DatasetSplit, include_attention_mask=True):
             Samples, Labels = [], []
             for Sample in DatasetSplit:
                 (input_ids, attention_mask), _Labels = EncodeSamples(Sample)
-                Samples.append((input_ids, attention_mask))
+                if include_attention_mask:
+                    Samples.append((input_ids, attention_mask))
+                else:
+                    Samples.append(input_ids)
                 Labels.append(_Labels)
-            InputIdsTensor = np.vstack([Sample[0] for Sample in Samples])
-            AttentionMaskTensor = np.vstack([Sample[1] for Sample in Samples])
-            LabelsTensor = np.stack([Sample for Sample in Labels], axis=0)
-
-            Dataset = tf.data.Dataset.from_tensor_slices((
-                (tf.constant(InputIdsTensor, dtype=tf.int32), tf.constant(AttentionMaskTensor, dtype=tf.int32)),
-                tf.constant(LabelsTensor, dtype=tf.int32)
-            ))
+            LabelsTensor = np.stack(Labels, axis=0)
+            if include_attention_mask:
+                InputIdsTensor = np.vstack([Sample[0] for Sample in Samples])
+                AttentionMaskTensor = np.vstack([Sample[1] for Sample in Samples])
+                Dataset = tf.data.Dataset.from_tensor_slices((
+                    (tf.constant(InputIdsTensor, dtype=tf.int32), tf.constant(AttentionMaskTensor, dtype=tf.int32)),
+                    tf.constant(LabelsTensor, dtype=tf.int32)
+                ))
+            else:
+                InputIdsTensor = np.vstack(Samples)
+                Dataset = tf.data.Dataset.from_tensor_slices((
+                    tf.constant(InputIdsTensor, dtype=tf.int32),
+                    tf.constant(LabelsTensor, dtype=tf.int32)
+                ))
             Dataset = Dataset.batch(BatchSize)
             Dataset = Dataset.prefetch(tf.data.experimental.AUTOTUNE)
             return Dataset
-
-        TrainSet = GenerateDataset(self.HuggingFaceDataset['train'])
-        ValidSet = GenerateDataset(self.HuggingFaceDataset['validation'])
-        TestSet  = GenerateDataset(self.HuggingFaceDataset['test'])
-        return TrainSet, ValidSet, TestSet
+        IncludeAttentionMask = True;
+        if ModelType == 'LSTM':
+            IncludeAttentionMask = False;
+        TrainSet = GenerateDataset(self.HuggingFaceDataset['train'], include_attention_mask=IncludeAttentionMask);
+        ValidSet = GenerateDataset(self.HuggingFaceDataset['validation'], include_attention_mask=IncludeAttentionMask);
+        TestSet = GenerateDataset(self.HuggingFaceDataset['test'], include_attention_mask=IncludeAttentionMask);
+        return TrainSet, ValidSet, TestSet;
 
 
 if __name__ == "__main__":

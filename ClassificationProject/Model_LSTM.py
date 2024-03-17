@@ -1,39 +1,28 @@
 # Model_LSTM.py
 import tensorflow as tf
-from tensorflow.keras.metrics import Precision, Recall, AUC
 from tensorflow.keras import layers, models
+from tensorflow.keras.metrics import Precision, Recall, AUC
+from tensorflow.keras.optimizers import Adam
 
 class LSTMModel:
-    def __init__(self, VocabularySize, EmbeddingDim=256, LSTMUnits=128):
-        self.Model = self.BuildModel(VocabularySize, EmbeddingDim, LSTMUnits)
+    def __init__(self, MaxLength=128, VocabularySize=30522, EmbeddingDim=256, LSTMUnits=128, NumberOfClasses=4):
+        self.Model = self.BuildModel(MaxLength, VocabularySize, EmbeddingDim, LSTMUnits, NumberOfClasses)
         print("[OK]: LSTM model building completed.")
 
-    def BuildModel(self, VocabularySize, EmbeddingDim, LSTMUnits):
-        InputLayer = layers.Input(shape=(None,), dtype='int32', name='InputLayer')
-        EmbeddingLayer = layers.Embedding(VocabularySize, EmbeddingDim, name='EmbeddingLayer')(InputLayer)
-        BiLSTMLayer = layers.Bidirectional(layers.LSTM(LSTMUnits, name='LSTMLayer'), name='BiLSTMLayer')(EmbeddingLayer)
-        DenseLayer = layers.Dense(64, activation='relu', name='DenseLayer')(BiLSTMLayer)
+    def BuildModel(self, MaxLength, VocabularySize, EmbeddingDim, LSTMUnits, NumberOfClasses):
+        InputIds = layers.Input(shape=(MaxLength,), dtype=tf.int32, name="input_ids")
+        # Although attention_mask is not used, it's accepted for interface compatibility
+        # AttentionMask = layers.Input(shape=(MaxLength,), dtype=tf.int32, name="attention_mask")
 
-        TimeSensitiveOutput = layers.Dense(1, activation='sigmoid', name='time_sensitive')(DenseLayer)
-        OrganizationalInteractionOutput = layers.Dense(1, activation='sigmoid', name='organizational_interaction')(DenseLayer)
-        PersonalRelevanceOutput = layers.Dense(1, activation='sigmoid', name='personal_relevance')(DenseLayer)
-        CommercialIntentOutput = layers.Dense(1, activation='sigmoid', name='commercial_intent')(DenseLayer)
+        EmbeddingLayer = layers.Embedding(input_dim=VocabularySize, output_dim=EmbeddingDim, name='EmbeddingLayer')(InputIds)
+        BiLSTMLayer = layers.Bidirectional(layers.LSTM(LSTMUnits, name='LSTMLayer'))(EmbeddingLayer)
+        DenseLayer = layers.Dense(64, activation='relu')(BiLSTMLayer)
+        OutputLayer = layers.Dense(NumberOfClasses, activation='sigmoid')(DenseLayer)
 
-        Model = models.Model(inputs=InputLayer, outputs=[
-            TimeSensitiveOutput,
-            OrganizationalInteractionOutput,
-            PersonalRelevanceOutput,
-            CommercialIntentOutput
-        ])
-
-        Model.compile(optimizer='adam',
-                      loss={
-                          'time_sensitive': 'binary_crossentropy',
-                          'organizational_interaction': 'binary_crossentropy',
-                          'personal_relevance': 'binary_crossentropy',
-                          'commercial_intent': 'binary_crossentropy'
-                      },
-                      metrics=['accuracy', Precision(), Recall(), AUC()]);
+        Model = models.Model(inputs=InputIds, outputs=OutputLayer)
+        Model.compile(optimizer=Adam(learning_rate=3e-5),
+                      loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                      metrics=['accuracy', Precision(), Recall(), AUC()])
         return Model
 
     def Train(self, TrainDataset, ValidationDataset, EpochsCount=10):

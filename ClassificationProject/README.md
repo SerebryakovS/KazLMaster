@@ -1,6 +1,5 @@
 conda create --name nlpenv python=3.9
-conda create --name=tf python=3.9
-conda activate tf
+conda activate nlpenv
 conda install -c conda-forge cudatoolkit=11.2.2 cudnn=8.1.0
 
 mkdir -p $CONDA_PREFIX/etc/conda/activate.d
