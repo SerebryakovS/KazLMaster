@@ -6,43 +6,43 @@ from Data import DataPreparation
 import matplotlib.pyplot as Plot
 import numpy as np
 
-def PlotMetric(HistoryObjects, Labels, BaseMetric, MetricType):
-    Plot.figure(figsize=(12, 8))
-    for History, Label in zip(HistoryObjects, Labels):
-        MetricName = f'{MetricType}_{BaseMetric}' if f'{MetricType}_{BaseMetric}' in History.history else BaseMetric
-        if MetricType == 'val':
-            MetricName = 'val_' + MetricName
-
-        if MetricName in History.history:
-            MetricValues = History.history[MetricName]
-            Epochs = range(1, len(MetricValues) + 1)
-            Plot.plot(Epochs, MetricValues, 'o-', label=f'{Label} {MetricType} {BaseMetric.capitalize()}')
-
-    Plot.title(f'{MetricType.capitalize()} {BaseMetric.capitalize()}')
-    Plot.xlabel('Epochs')
-    Plot.ylabel(BaseMetric.capitalize())
-    Plot.legend()
-    Plot.savefig(f'{MetricType}_{BaseMetric}.jpg')
-    Plot.close()
+def NormalizeMetricName(MetricName):
+    return ''.join([Idx for Idx in MetricName if not Idx.isdigit()]).replace('__', '_');
 
 def PlotMetrics(HistoryObjects, Labels):
-    BaseMetrics = ['loss', 'accuracy', 'precision', 'recall', 'auc']
+    BaseMetrics = ['loss', 'accuracy', 'precision', 'recall', 'auc'];
+    MetricTypes = ['train', 'val'];
+    for MetricType in MetricTypes:
+        for BaseMetric in BaseMetrics:
+            Plot.figure(figsize=(12, 8));
+            for History, Label in zip(HistoryObjects, Labels):
+                NormalizedMetrics = {NormalizeMetricName(k): v for k, v in History.history.items()};
+                TrainMetricName = BaseMetric if BaseMetric in NormalizedMetrics else None;
+                ValMetricName = 'val_' + BaseMetric if 'val_' + BaseMetric in NormalizedMetrics else None;
+                MetricName = ValMetricName if MetricType == 'val' and ValMetricName else TrainMetricName;
+                if MetricName:
+                    MetricValues = NormalizedMetrics[MetricName];
+                    Epochs = range(1, len(MetricValues) + 1);
+                    Plot.plot(Epochs, MetricValues, 'o-', label=f'{Label} {MetricType.capitalize()} {BaseMetric.capitalize()}');
+            Plot.title(f'{MetricType.capitalize()} {BaseMetric.capitalize()} over Epochs');
+            Plot.xlabel('Epochs');
+            Plot.ylabel(BaseMetric.capitalize());
+            Plot.legend();
+            Plot.savefig(f'{MetricType}_{BaseMetric}.jpg');
+            Plot.close();
 
-    # Adjust metric names for BERT and GPT if needed
-    AdjustedHistories = []
+def PlotMetrics(HistoryObjects, Labels):
+    BaseMetrics = ['loss', 'accuracy', 'precision', 'recall', 'auc'];
+    AdjustedHistories = [];
     for History in HistoryObjects:
-        AdjustedHistory = {}
-        for key, value in History.history.items():
-            new_key = key.replace(' 1', '').replace(' 2', '')
-            AdjustedHistory[new_key] = value
-        AdjustedHistories.append(type('History', (object,), {'history': AdjustedHistory}))
-
+        AdjustedHistory = {};
+        for Key, Value in History.history.items():
+            NewKey = Key.replace(' 1', '').replace(' 2', '');
+            AdjustedHistory[NewKey] = Value;
+        AdjustedHistories.append(type('History', (object,), {'history': AdjustedHistory}));
     for BaseMetric in BaseMetrics:
-        # Plot training metrics
-        PlotMetric(AdjustedHistories, Labels, BaseMetric, 'train')
-        # Plot validation metrics
-        PlotMetric(AdjustedHistories, Labels, BaseMetric, 'val')
-
+        PlotMetric(AdjustedHistories, Labels, BaseMetric, 'train');
+        PlotMetric(AdjustedHistories, Labels, BaseMetric, 'val');
 
 def PrintEvaluationResults(Results, HistoryObjects, Labels):
     print("Model Evaluation Results:")
